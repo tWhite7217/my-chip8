@@ -1,8 +1,9 @@
 #include <stdio.h>
+#include <string.h>
 #include "chip8_display.h"
 
 Chip8_Display::Chip8_Display(chip8_display_settings settings) : chip8_pixels_as_SDL_rectangles{},
-                                                                chip8_pixels_as_horizontal_line_bits{0xffaa00ff}
+                                                                chip8_pixels_as_horizontal_line_bits{}
 {
     SDL_pixels_per_chip8_pixel = settings.SDL_pixels_per_chip8_pixel;
     chip8_pixel_border_in_SDL_pixels = settings.chip8_pixel_border_in_SDL_pixels;
@@ -35,7 +36,7 @@ Chip8_Display::Chip8_Display(chip8_display_settings settings) : chip8_pixels_as_
 }
 
 // void update_SDL_window(SDL_Surface *drawing_surface, std::bitset<CHIP8_DISPLAY_WIDTH> display_horizontal_lines[CHIP8_DISPLAY_HEIGHT])
-void Chip8_Display::update()
+void Chip8_Display::draw_to_window()
 {
     for (int i = 0; i < CHIP8_DISPLAY_HEIGHT; i++)
     {
@@ -44,14 +45,13 @@ void Chip8_Display::update()
         {
             int amount_to_shift = CHIP8_DISPLAY_WIDTH - (j + 1);
             bool current_pixel_value = (current_horizontal_line_bitset >> amount_to_shift) & 1;
-            if (current_pixel_value)
-                update_pixel(i, j, current_pixel_value);
+            draw_one_pixel(i, j, current_pixel_value);
         }
     }
     SDL_UpdateWindowSurface(window);
 }
 
-void Chip8_Display::update_pixel(int row, int column, bool pixel_value)
+void Chip8_Display::draw_one_pixel(int row, int column, bool pixel_value)
 {
     uint32_t color;
     if (pixel_value == 0)
@@ -65,7 +65,55 @@ void Chip8_Display::update_pixel(int row, int column, bool pixel_value)
     SDL_FillRect(drawing_surface, &chip8_pixels_as_SDL_rectangles[row][column], color);
 }
 
+void Chip8_Display::update_pixels_using_sprite(uint8_t sprite_pixels[], uint8_t sprite_height, uint8_t x_coordinate, uint8_t y_coordinate)
+{
+    x_coordinate = x_coordinate % CHIP8_DISPLAY_WIDTH;
+    for (uint8_t i = 0; i < sprite_height && i < CHIP8_DISPLAY_HEIGHT; i++)
+    {
+        uint64_t current_sprite_line_pixels = sprite_pixels[i];
+        int amount_to_shift = CHIP8_DISPLAY_WIDTH - (x_coordinate + SPRITE_WIDTH);
+        uint64_t mask;
+        if (amount_to_shift < 0)
+        {
+            amount_to_shift = abs(amount_to_shift);
+            mask = current_sprite_line_pixels >> amount_to_shift;
+        }
+        else
+        {
+            mask = current_sprite_line_pixels << amount_to_shift;
+        }
+        chip8_pixels_as_horizontal_line_bits[y_coordinate + i] ^= mask;
+    }
+}
+
+void Chip8_Display::clear()
+{
+    memset(chip8_pixels_as_horizontal_line_bits, 0, sizeof(chip8_pixels_as_horizontal_line_bits));
+}
+
 void Chip8_Display::close()
 {
     SDL_DestroyWindow(window);
+}
+
+void Chip8_Display::print_pixels_to_console()
+{
+    for (int i = 0; i < CHIP8_DISPLAY_HEIGHT; i++)
+    {
+        uint64_t current_horizontal_line_bitset = chip8_pixels_as_horizontal_line_bits[i];
+        for (int j = 0; j < CHIP8_DISPLAY_WIDTH; j++)
+        {
+            int amount_to_shift = CHIP8_DISPLAY_WIDTH - (j + 1);
+            bool current_pixel_value = (current_horizontal_line_bitset >> amount_to_shift) & 1;
+            if (current_pixel_value)
+            {
+                printf("#");
+            }
+            else
+            {
+                printf(" ");
+            }
+        }
+        printf("\n");
+    }
 }

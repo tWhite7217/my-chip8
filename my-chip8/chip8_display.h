@@ -19,6 +19,7 @@ class Chip8_Display
 private:
     static const int CHIP8_DISPLAY_WIDTH = 64;
     static const int CHIP8_DISPLAY_HEIGHT = 32;
+    static const int SPRITE_WIDTH = 8;
     int SDL_pixels_per_chip8_pixel;
     int chip8_pixel_border_in_SDL_pixels;
     int chip8_pixel_width_in_SDL_pixels;
@@ -34,10 +35,13 @@ private:
 
     bool initialized_correctly;
 
-    void update_pixel(int row, int column, bool pixel_value);
+    void draw_one_pixel(int row, int column, bool pixel_value);
 
 public:
     Chip8_Display(chip8_display_settings settings);
-    void update();
+    void draw_to_window();
+    void update_pixels_using_sprite(uint8_t sprite_pixels[], uint8_t sprite_height, uint8_t x_coordinate, uint8_t y_coordinate);
+    void clear();
     void close();
+    void print_pixels_to_console();
 };

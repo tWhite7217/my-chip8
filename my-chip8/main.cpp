@@ -1,18 +1,12 @@
 #include <SDL.h>
 #include <stdio.h>
-#include <stack>
-#include <fstream>
 #include <iterator>
 #include <algorithm>
-#include <filesystem>
 #include <bitset>
-
-namespace fs = std::filesystem;
 
 #include "main.h"
 #include "chip8_display.h"
-
-const int MAX_ROM_SIZE_IN_BYTES = 4096 - 512;
+#include "chip8_device.h"
 
 int main(int argc, char *args[])
 {
@@ -27,30 +21,7 @@ int main(int argc, char *args[])
 		.on_pixel_blue_value = 0xff};
 	Chip8_Display display(display_settings);
 
-	uint8_t memory[4096] = {
-		0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
-		0x20, 0x60, 0x20, 0x20, 0x70, // 1
-		0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
-		0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
-		0x90, 0x90, 0xF0, 0x10, 0x10, // 4
-		0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
-		0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
-		0xF0, 0x10, 0x20, 0x40, 0x40, // 7
-		0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
-		0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
-		0xF0, 0x90, 0xF0, 0x90, 0x90, // A
-		0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
-		0xF0, 0x80, 0x80, 0x80, 0xF0, // C
-		0xE0, 0x90, 0x90, 0x90, 0xE0, // D
-		0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-		0xF0, 0x80, 0xF0, 0x80, 0x80  // F
-	};
-	uint16_t PC = 512;
-	uint16_t index_register = 0;
-	std::stack<uint16_t> stack;
-	uint8_t delay_timer = 0;
-	uint8_t sound_timer = 0;
-	uint8_t reg_file[16] = {};
+	Chip8_Device device(display);
 
 	if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0)
 	{
@@ -58,58 +29,49 @@ int main(int argc, char *args[])
 		exit(1);
 	}
 
-	display.update();
+	const char *rom_string_path = "D:\\Downloads\\IBM Logo.ch8";
+	device.open_ROM(rom_string_path);
 
-	SDL_Delay(2000);
+	while (true)
+	{
+		device.read_instruction_at_PC();
+		device.increment_PC();
 
-	// const char *rom_string_path = "D:\\Downloads\\IBM Logo.ch8";
-	// fs::path rom_filesystem_path = rom_string_path;
-	// uintmax_t rom_size_in_bytes = fs::file_size(rom_filesystem_path);
-	// if (rom_size_in_bytes > MAX_ROM_SIZE_IN_BYTES)
-	// {
-	// 	exit(1);
-	// }
+		switch (device.get_opcode())
+		{
+		case 0x0:
+			device.clear_display();
+			break;
 
-	// FILE *rom_file = NULL;
-	// fopen_s(&rom_file, rom_string_path, "rb");
-	// if (rom_file == 0)
-	// {
-	// 	printf("Error opening ROM\n");
-	// 	exit(1);
-	// }
-	// int bytes_read = fread(&memory[512], sizeof(char), rom_size_in_bytes, rom_file);
+		case 0x1:
+			device.set_PC_to_immediate_value();
+			break;
 
-	// printf("rom bytes read = %d\n", bytes_read);
+		case 0x6:
+			device.set_register_to_immediate_value();
+			break;
 
-	// unsigned short current_instruction;
-	// unsigned char first_nibble;
+		case 0x7:
+			device.add_immediate_value_to_register();
+			break;
 
-	// // while (TRUE)
-	// // {
-	// // printf("char at PC %d: %x\n", PC, memory[PC]);
-	// // printf("char at PC %d: %x\n", PC + 1, memory[PC + 1]);
+		case 0xA:
+			device.set_index_register_to_immediate_value();
+			break;
 
-	// current_instruction = (memory[PC] << 8) | memory[PC + 1];
-	// printf("instruction at PC %d: %04x\n", PC, current_instruction);
-	// PC += 2;
+		case 0xD:
+			device.draw_sprite_at_index_address_to_coordinates_in_registers();
+			break;
 
-	// first_nibble = current_instruction >> 12;
+		default:
+			printf("Error: unknown opcode.");
+			exit(1);
+			break;
+		}
 
-	// switch (first_nibble)
-	// {
-	// case 0:
-	// 	SDL_FillRect(drawing_surface, NULL, SDL_MapRGB(drawing_surface->format, 0x00, 0x00, 0x00));
-
-	// 	SDL_UpdateWindowSurface(window);
-	// 	SDL_Delay(2000);
-	// 	break;
-
-	// default:
-	// 	printf("Error: unknown opcode.");
-	// 	exit(1);
-	// 	break;
-	// }
-	// // }
+		SDL_Delay(50);
+		// device.print_device_state_info();
+	}
 
 	SDL_Quit();
 

@@ -13,6 +13,7 @@ public:
     void open_ROM(const char *);
     void cpu_tick();
     void print_device_state_info();
+    void quit();
 
 private:
     static const int MEMORY_SIZE_IN_BYTES = 4096;
@@ -51,12 +52,14 @@ private:
     Instruction current_instruction;
     int clock_cycles_since_delay_timer_decremented;
     int clock_cycles_since_sound_timer_decremented;
+    int clock_cycles_since_display_updated;
 
     void read_instruction_at_PC();
     void increment_PC();
     void decrement_PC();
     void update_keypad_state();
     void perform_instruction();
+    void handle_display();
     void handle_timers();
     void handle_timer(uint8_t *, int *);
     uint8_t get_register_X_value();

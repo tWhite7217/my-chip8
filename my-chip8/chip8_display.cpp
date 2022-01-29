@@ -3,13 +3,18 @@
 #include "chip8_display.h"
 
 Chip8_Display::Chip8_Display(chip8_display_settings settings) : pixels_as_SDL_rectangles{},
-                                                                horizontal_display_lines{}
+                                                                horizontal_display_lines{},
+                                                                pixel_colors_as_array_index{}
 {
     SDL_pixels_per_chip8_pixel = settings.SDL_pixels_per_chip8_pixel;
     chip8_pixel_border_in_SDL_pixels = settings.chip8_pixel_border_in_SDL_pixels;
     chip8_pixel_width_in_SDL_pixels = SDL_pixels_per_chip8_pixel - (2 * chip8_pixel_border_in_SDL_pixels);
     SDL_window_width = CHIP8_DISPLAY_WIDTH * SDL_pixels_per_chip8_pixel;
     SDL_window_height = CHIP8_DISPLAY_HEIGHT * SDL_pixels_per_chip8_pixel;
+
+    num_frames_off_pixel_fades = settings.num_frames_off_pixel_fades;
+    fade_step_fraction = ((float)1) / (num_frames_off_pixel_fades + 1);
+    pixel_color_array_size = num_frames_off_pixel_fades + 2;
 
     window = SDL_CreateWindow("MyChip8", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SDL_window_width, SDL_window_height, SDL_WINDOW_SHOWN);
     if (window == NULL)
@@ -19,9 +24,9 @@ Chip8_Display::Chip8_Display(chip8_display_settings settings) : pixels_as_SDL_re
     }
 
     drawing_surface = SDL_GetWindowSurface(window);
-    SDL_PixelFormat *pixel_format = drawing_surface->format;
-    off_pixel_color = SDL_MapRGB(pixel_format, settings.off_pixel_red_value, settings.off_pixel_green_value, settings.off_pixel_blue_value);
-    on_pixel_color = SDL_MapRGB(pixel_format, settings.on_pixel_red_value, settings.on_pixel_green_value, settings.on_pixel_blue_value);
+
+    possible_pixel_colors_from_fully_off_to_fully_on = (uint32_t *)malloc(pixel_color_array_size * sizeof(uint32_t));
+    generate_display_colors(settings);
 
     for (int i = 0; i < CHIP8_DISPLAY_HEIGHT; i++)
     {
@@ -37,6 +42,26 @@ Chip8_Display::Chip8_Display(chip8_display_settings settings) : pixels_as_SDL_re
     }
 }
 
+void Chip8_Display::generate_display_colors(chip8_display_settings settings)
+{
+    SDL_PixelFormat *pixel_format = drawing_surface->format;
+
+    for (int i = 0; i < pixel_color_array_size; i++)
+    {
+        float on_color_fraction = i * fade_step_fraction;
+        uint8_t blended_red_value = blend_color_channel_value(settings.on_pixel_red_value, settings.off_pixel_red_value, on_color_fraction);
+        uint8_t blended_green_value = blend_color_channel_value(settings.on_pixel_green_value, settings.off_pixel_green_value, on_color_fraction);
+        uint8_t blended_blue_value = blend_color_channel_value(settings.on_pixel_blue_value, settings.off_pixel_blue_value, on_color_fraction);
+        possible_pixel_colors_from_fully_off_to_fully_on[i] = SDL_MapRGB(pixel_format, blended_red_value, blended_green_value, blended_blue_value);
+    }
+}
+
+uint8_t Chip8_Display::blend_color_channel_value(uint8_t value_1, uint8_t value_2, float fraction_of_value_1)
+{
+    float fraction_of_value_2 = 1 - fraction_of_value_1;
+    return (value_1 * fraction_of_value_1) + (value_2 * fraction_of_value_2);
+}
+
 // void update_SDL_window(SDL_Surface *drawing_surface, std::bitset<CHIP8_DISPLAY_WIDTH> display_horizontal_lines[CHIP8_DISPLAY_HEIGHT])
 void Chip8_Display::update_display_window()
 {
@@ -46,24 +71,28 @@ void Chip8_Display::update_display_window()
         for (int j = 0; j < CHIP8_DISPLAY_WIDTH; j++)
         {
             int amount_to_shift = CHIP8_DISPLAY_WIDTH - (j + 1);
-            bool new_pixel_value = (current_horizontal_line_bitset >> amount_to_shift) & 1;
-            draw_one_pixel(i, j, new_pixel_value);
+            bool pixel_value_is_on = (current_horizontal_line_bitset >> amount_to_shift) & 1;
+            draw_one_pixel(i, j, pixel_value_is_on);
         }
     }
     SDL_UpdateWindowSurface(window);
 }
 
-void Chip8_Display::draw_one_pixel(int row, int column, bool pixel_value)
+void Chip8_Display::draw_one_pixel(int row, int column, bool pixel_is_on)
 {
-    uint32_t color;
-    if (pixel_value == 0)
+    size_t *pixel_color_index = &pixel_colors_as_array_index[row][column];
+    if (pixel_is_on)
     {
-        color = off_pixel_color;
+        *pixel_color_index = pixel_color_array_size - 1;
     }
     else
     {
-        color = on_pixel_color;
+        if (*pixel_color_index > 0)
+        {
+            *pixel_color_index -= 1;
+        }
     }
+    uint32_t color = possible_pixel_colors_from_fully_off_to_fully_on[*pixel_color_index];
     SDL_FillRect(drawing_surface, &pixels_as_SDL_rectangles[row][column], color);
 }
 
@@ -119,6 +148,7 @@ void Chip8_Display::clear()
 
 void Chip8_Display::close()
 {
+    free(possible_pixel_colors_from_fully_off_to_fully_on);
     SDL_DestroyWindow(window);
 }
 

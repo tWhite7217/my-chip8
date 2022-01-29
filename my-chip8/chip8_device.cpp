@@ -13,7 +13,9 @@ using namespace std::chrono_literals;
 const auto ONE_SECOND_IN_NANOSECONDS = 1000000000ns;
 const auto CLOCK_CYCLE_PERIOD = ONE_SECOND_IN_NANOSECONDS / 700;
 const auto TIMER_PERIOD = ONE_SECOND_IN_NANOSECONDS / 60;
+const auto DISPLAY_PERIOD = ONE_SECOND_IN_NANOSECONDS / 60;
 const auto CLOCK_CYCLES_PER_TIMER_PERIOD = TIMER_PERIOD / CLOCK_CYCLE_PERIOD;
+const auto CLOCK_CYCLES_PER_DISPLAY_PERIOD = DISPLAY_PERIOD / CLOCK_CYCLE_PERIOD;
 
 namespace fs = std::filesystem;
 
@@ -25,7 +27,8 @@ Chip8_Device::Chip8_Device(Chip8_Display display) : PC{512},
                                                     display{display},
                                                     keypad{Chip8_Keypad()},
                                                     clock_cycles_since_delay_timer_decremented{0},
-                                                    clock_cycles_since_sound_timer_decremented{0}
+                                                    clock_cycles_since_sound_timer_decremented{0},
+                                                    clock_cycles_since_display_updated{0}
 {
     srand(time(NULL));
 }
@@ -58,6 +61,7 @@ void Chip8_Device::cpu_tick()
     read_instruction_at_PC();
     increment_PC();
     perform_instruction();
+    handle_display();
     handle_timers();
 
     auto clock_after_instruction = std::chrono::system_clock::now();
@@ -114,6 +118,11 @@ void Chip8_Device::print_device_state_info()
     keypad.print_key_statuses();
 }
 
+void Chip8_Device::quit()
+{
+    display.close();
+}
+
 uint8_t Chip8_Device::get_register_X_value()
 {
     return register_file[current_instruction.get_register_X_number()];
@@ -122,6 +131,20 @@ uint8_t Chip8_Device::get_register_X_value()
 uint8_t Chip8_Device::get_register_Y_value()
 {
     return register_file[current_instruction.get_register_Y_number()];
+}
+
+void Chip8_Device::handle_display()
+{
+    if (clock_cycles_since_display_updated >= CLOCK_CYCLES_PER_DISPLAY_PERIOD)
+    {
+
+        display.update_display_window();
+        clock_cycles_since_display_updated = 0;
+    }
+    else
+    {
+        clock_cycles_since_display_updated++;
+    }
 }
 
 void Chip8_Device::handle_timers()

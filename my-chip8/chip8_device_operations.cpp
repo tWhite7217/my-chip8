@@ -3,7 +3,6 @@
 void Chip8_Device::clear_display()
 {
     display.clear();
-    display.update_display_window();
 }
 
 void Chip8_Device::return_from_subroutine()
@@ -171,7 +170,6 @@ void Chip8_Device::draw_sprite_at_index_address_to_coordinates_in_registers()
     display_coordinates coordinates = get_sprite_coordinates_from_registers();
 
     display.draw_sprite(sprite, coordinates);
-    display.update_display_window();
 
     set_flag_indicating_if_any_pixels_turned_off();
 }

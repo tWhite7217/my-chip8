@@ -14,8 +14,30 @@ typedef struct
     uint8_t on_pixel_blue_value;
 } chip8_display_settings;
 
+typedef struct
+{
+    uint8_t *horizontal_lines;
+    uint8_t height;
+} chip8_sprite;
+
+typedef struct
+{
+    uint8_t x;
+    uint8_t y;
+} display_coordinates;
+
 class Chip8_Display
 {
+public:
+    bool at_least_one_pixel_turned_off_when_last_sprite_was_drawn;
+
+    Chip8_Display(chip8_display_settings settings);
+    void update_display_window();
+    void draw_sprite(chip8_sprite sprite, display_coordinates coordinates);
+    void clear();
+    void close();
+    void print_display_to_console();
+
 private:
     static const int CHIP8_DISPLAY_WIDTH = 64;
     static const int CHIP8_DISPLAY_HEIGHT = 32;
@@ -28,20 +50,13 @@ private:
 
     SDL_Window *window;
     SDL_Surface *drawing_surface;
-    SDL_Rect chip8_pixels_as_SDL_rectangles[CHIP8_DISPLAY_HEIGHT][CHIP8_DISPLAY_WIDTH];
-    uint64_t chip8_pixels_as_horizontal_line_bits[CHIP8_DISPLAY_HEIGHT];
+    SDL_Rect pixels_as_SDL_rectangles[CHIP8_DISPLAY_HEIGHT][CHIP8_DISPLAY_WIDTH];
+    uint64_t horizontal_display_lines[CHIP8_DISPLAY_HEIGHT];
     uint32_t off_pixel_color;
     uint32_t on_pixel_color;
 
-    bool initialized_correctly;
-
     void draw_one_pixel(int row, int column, bool pixel_value);
-
-public:
-    Chip8_Display(chip8_display_settings settings);
-    void draw_to_window();
-    void update_pixels_using_sprite(uint8_t sprite_pixels[], uint8_t sprite_height, uint8_t x_coordinate, uint8_t y_coordinate);
-    void clear();
-    void close();
-    void print_pixels_to_console();
+    uint64_t shift_sprite_line_left(uint64_t sprite_line, int amount_to_shift);
+    bool drawing_sprite_line_will_turn_off_pixel(uint64_t *display_line_to_update, uint64_t sprite_line_shifted_into_place);
+    void update_line_using_shifted_sprite_line(uint64_t *display_line_to_update, uint64_t sprite_line_shifted_into_place);
 };

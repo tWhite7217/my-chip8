@@ -19,6 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="chip8_device_operations.cpp" />
+    <ClCompile Include="chip8_keypad.cpp" />
+    <ClCompile Include="instruction.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="chip8_display.cpp" />
     <ClCompile Include="chip8_device.cpp" />
@@ -26,6 +29,8 @@
   <ItemGroup>
     <ClInclude Include="chip8_display.h" />
     <ClInclude Include="chip8_device.h" />
+    <ClInclude Include="chip8_keypad.h" />
+    <ClInclude Include="instruction.h" />
     <ClInclude Include="main.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
